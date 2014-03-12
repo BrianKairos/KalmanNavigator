@@ -129,10 +129,6 @@ const real_t (&c)[TUNER_HORIZON_LENGTH*UKF_CONTROL_DIM]) {
 	options.linear_solver_type = DENSE_QR;
 	options.use_nonmonotonic_steps = true;
 	options.max_consecutive_nonmonotonic_steps = 20;
-	options.function_tolerance=1e-12;
-	options.parameter_tolerance=1e-12;
-	options.numeric_derivative_relative_step_size = 1e0;
-	options.min_relative_decrease = 1e-1;
 	options.minimizer_progress_to_stdout = true;
 
 	Solver::Summary summary;
