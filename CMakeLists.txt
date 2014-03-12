@@ -22,8 +22,6 @@ SET(eigen_dir ${source_dir})
 
 INCLUDE_DIRECTORIES(include ${eigen_dir})
 
-SET(CMAKE_CXX_FLAGS "-isystem ${eigen_dir} -O3 -Weverything -Werror -Wno-documentation -Wno-system-headers -Wno-padded")
-
 ADD_LIBRARY(ukf STATIC
     src/state.cpp
     src/dynamics.cpp
@@ -39,3 +37,5 @@ ADD_DEPENDENCIES(ukf eigen3)
 ENABLE_TESTING()
 
 ADD_SUBDIRECTORY(test EXCLUDE_FROM_ALL)
+
+ADD_SUBDIRECTORY(tuner EXCLUDE_FROM_ALL)

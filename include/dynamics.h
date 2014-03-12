@@ -68,17 +68,17 @@ class X8DynamicsModel: public DynamicsModel {
     /* Store inverse inertia tensor for performance */
     Matrix3x3r inertia_tensor_inv;
 
-public:
-    X8DynamicsModel(void) {
-        mass_inv = (real_t)1.0 / 3.8;
+    /* Dynamics model parameters. */
+    real_t l_1, l_2;            /* Lift */
+    real_t d_1, d_2;            /* Drag */
+    real_t s_1;                 /* Side */
+    real_t p_1, p_2, p_3, p_c;  /* Pitch (p_c is control coefficient) */
+    real_t r_1, r_2, r_c;       /* Roll */
+    real_t y_1, y_2, y_c;       /* Yaw */
+    real_t t_1;                 /* Thrust */
 
-        Matrix3x3r inertia_tensor;
-        inertia_tensor <<
-            3.0e-1, 0, -0.334e-1,
-            0, 1.7e-1, 0,
-            -0.334e-1, 0, 4.05e-1;
-        inertia_tensor_inv = inertia_tensor.inverse();
-    }
+public:
+    X8DynamicsModel(const real_t params[16]);
 
     AccelerationVector evaluate(
     const State &in, const ControlVector &control) const;

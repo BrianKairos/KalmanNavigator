@@ -40,6 +40,7 @@ custom_model = None
 # Internal globals, set during init
 _cukf = None
 _REAL_T = None
+_STATE_DIM = None
 _CONTROL_DIM = None
 _CUSTOM_MODEL_FUNC = None
 
@@ -226,7 +227,7 @@ def configure_process_noise(process_noise_covariance):
 
 def init(implementation="c"):
     global _cukf, _REAL_T, _CONTROL_DIM, _CUSTOM_MODEL_FUNC, state, \
-           _custom_model_func_wrapper_cb
+           _STATE_DIM, _custom_model_func_wrapper_cb
 
 
     # Load the requested library and determine configuration parameters

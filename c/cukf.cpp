@@ -29,6 +29,16 @@ SOFTWARE.
 
 #include "cukf.h"
 
+static real_t dynamics_params[16] = {
+    0.8, 0.15,
+    0.05, 0.7,
+    0.3,
+    0.0, 0.015, -0.003, -0.005,
+    0.02, 0.08, 0.01,
+    -0.02, -0.05, -0.001,
+    0.0025
+};
+
 static IOBoardModel model = IOBoardModel(
     Quaternionr(1, 0, 0, 0), /* NOTE: W, x, y, z */
     Vector3r(0, 0, 0),
@@ -38,7 +48,7 @@ static IOBoardModel model = IOBoardModel(
 static UnscentedKalmanFilter ukf = UnscentedKalmanFilter(model);
 static CentripetalModel centripetal_model = CentripetalModel();
 static CustomDynamicsModel custom_model = CustomDynamicsModel();
-static X8DynamicsModel x8_model = X8DynamicsModel();
+static X8DynamicsModel x8_model = X8DynamicsModel(dynamics_params);
 
 void ukf_init(void) {
 
