@@ -30,7 +30,7 @@ SOFTWARE.
 #include "types.h"
 #include "state.h"
 
-#define TUNER_HORIZON_LENGTH 1000
+#define TUNER_HORIZON_LENGTH 200
 
 class DynamicsCostFunctor {
 	const StateVector* reference_state;

@@ -135,8 +135,8 @@ if __name__ == "__main__":
         if int(readings["time"])/20 > last_time/20:
             # Ensure video roll, pitch exist and are within 5 degrees of
             # UKF values.
-            if abs(float(readings["video_roll"]) - float(readings["roll"])) > 5 or \
-            abs(float(readings["video_pitch"]) - float(readings["pitch"])) > 5:
+            if abs(float(readings["video_roll"]) - float(readings["roll"])) > 15 or \
+            abs(float(readings["video_pitch"]) - float(readings["pitch"])) > 15:
                 print "Ignoring sample at %d ms" % readings["time"]
                 current_horizon = []
                 last_time = int(readings["time"])
