@@ -358,7 +358,7 @@ const real_t *restrict control) {
     lift = (qbar * 0.26315789473684f) * (0.8f * sin_cos_alpha + 0.18f);
     drag = (qbar * 0.26315789473684f) *
            (0.05f + 0.7f * sin_alpha * sin_alpha);
-    side_force = (qbar * 0.26315789473684f) * 0.2f * sin_beta * cos_beta;
+    side_force = (qbar * 0.26315789473684f) * 0.05f * sin_beta;
 
     /* Convert aerodynamic forces from wind frame to body frame */
     real_t x_aero_f = lift * sin_alpha - drag * cos_alpha -
@@ -770,6 +770,7 @@ void _ukf_calculate_state_covariance() {
 
 
 /* Public interface */
+#pragma FUNC_EXT_CALLED(ukf_set_position);
 void ukf_set_position(real_t lat, real_t lon, real_t alt) {
     assert(-M_PI * 0.5 <= lat && lat <= M_PI * 0.5 &&
            "`lat` is outside [-pi/2, pi/2]");
@@ -782,6 +783,7 @@ void ukf_set_position(real_t lat, real_t lon, real_t alt) {
     state.position[2] = alt;
 }
 
+#pragma FUNC_EXT_CALLED(ukf_set_velocity);
 void ukf_set_velocity(real_t x, real_t y, real_t z) {
     assert(absval(x) <= 100.0 && "`|x|` is greater than 100m/s");
     assert(absval(y) <= 100.0 && "`|y|` is greater than 100m/s");
@@ -792,6 +794,7 @@ void ukf_set_velocity(real_t x, real_t y, real_t z) {
     state.velocity[Z] = z;
 }
 
+#pragma FUNC_EXT_CALLED(ukf_set_acceleration);
 void ukf_set_acceleration(real_t x, real_t y, real_t z) {
     assert(absval(x) <= G_ACCEL * 10.0 && "`|x|` is greater than 10g");
     assert(absval(y) <= G_ACCEL * 10.0 && "`|x|` is greater than 10g");
@@ -802,6 +805,7 @@ void ukf_set_acceleration(real_t x, real_t y, real_t z) {
     state.acceleration[Z] = z;
 }
 
+#pragma FUNC_EXT_CALLED(ukf_set_attitude);
 void ukf_set_attitude(real_t w, real_t x, real_t y, real_t z) {
     assert(absval(x*x + y*y + z*z + w*w - 1.0) < 1e-6 &&
            "`q(x, y, z, w)` not normalized");
@@ -812,6 +816,7 @@ void ukf_set_attitude(real_t w, real_t x, real_t y, real_t z) {
     state.attitude[W] = w;
 }
 
+#pragma FUNC_EXT_CALLED(ukf_set_angular_velocity);
 void ukf_set_angular_velocity(real_t x, real_t y, real_t z) {
     assert(absval(x) <= M_PI * 4.0 && "`|x|` is greater than 4pi rad/s");
     assert(absval(y) <= M_PI * 4.0 && "`|y|` is greater than 4pi rad/s");
@@ -822,6 +827,7 @@ void ukf_set_angular_velocity(real_t x, real_t y, real_t z) {
     state.angular_velocity[Z] = z;
 }
 
+#pragma FUNC_EXT_CALLED(ukf_set_angular_acceleration);
 void ukf_set_angular_acceleration(real_t x, real_t y, real_t z) {
     assert(absval(x) <= M_PI * 4.0 && "`|x|` is greater than 4pi rad/s/s");
     assert(absval(y) <= M_PI * 4.0 && "`|y|` is greater than 4pi rad/s/s");
@@ -832,6 +838,7 @@ void ukf_set_angular_acceleration(real_t x, real_t y, real_t z) {
     state.angular_acceleration[Z] = z;
 }
 
+#pragma FUNC_EXT_CALLED(ukf_set_wind_velocity);
 void ukf_set_wind_velocity(real_t x, real_t y, real_t z) {
     assert(absval(x) <= 100.0 && "`|x|` is greater than 100m/s");
     assert(absval(y) <= 100.0 && "`|y|` is greater than 100m/s");
@@ -842,6 +849,7 @@ void ukf_set_wind_velocity(real_t x, real_t y, real_t z) {
     state.wind_velocity[Z] = z;
 }
 
+#pragma FUNC_EXT_CALLED(ukf_set_gyro_bias);
 void ukf_set_gyro_bias(real_t x, real_t y, real_t z) {
     assert(absval(x) <= M_PI * 0.25 && "`|x|` is greater than pi/4 rad/s");
     assert(absval(y) <= M_PI * 0.25 && "`|y|` is greater than pi/4 rad/s");
@@ -852,21 +860,25 @@ void ukf_set_gyro_bias(real_t x, real_t y, real_t z) {
     state.gyro_bias[Z] = z;
 }
 
+#pragma FUNC_EXT_CALLED(ukf_get_state);
 void ukf_get_state(struct ukf_state_t *in) {
     assert(in && "`in` is NULL");
     memcpy(in, &state, sizeof(state));
 }
 
+#pragma FUNC_EXT_CALLED(ukf_set_state);
 void ukf_set_state(struct ukf_state_t *in) {
     assert(in && "`in` is NULL");
     memcpy(&state, in, sizeof(state));
 }
 
+#pragma FUNC_EXT_CALLED(ukf_get_state_covariance);
 void ukf_get_state_covariance(real_t in[UKF_STATE_DIM * UKF_STATE_DIM]) {
     assert(in && "`in` is NULL");
     memcpy(in, state_covariance, sizeof(state_covariance));
 }
 
+#pragma FUNC_EXT_CALLED(ukf_get_state_covariance_diagonal);
 void ukf_get_state_covariance_diagonal(real_t in[UKF_STATE_DIM]) {
     assert(in && "`in` is NULL");
 
@@ -877,6 +889,7 @@ void ukf_get_state_covariance_diagonal(real_t in[UKF_STATE_DIM]) {
     }
 }
 
+#pragma FUNC_EXT_CALLED(ukf_get_state_error);
 void ukf_get_state_error(real_t in[UKF_STATE_DIM]) {
     assert(in && "`in` is NULL");
 
@@ -894,10 +907,12 @@ void ukf_get_state_error(real_t in[UKF_STATE_DIM]) {
     }
 }
 
+#pragma FUNC_EXT_CALLED(ukf_sensor_clear);
 void ukf_sensor_clear() {
     memset(&sensor_model.flags, 0, sizeof(sensor_model.flags));
 }
 
+#pragma FUNC_EXT_CALLED(ukf_sensor_set_accelerometer);
 void ukf_sensor_set_accelerometer(real_t x, real_t y, real_t z) {
     sensor_model.accelerometer[X] = x;
     sensor_model.accelerometer[Y] = y;
@@ -905,6 +920,7 @@ void ukf_sensor_set_accelerometer(real_t x, real_t y, real_t z) {
     sensor_model.flags.accelerometer = true;
 }
 
+#pragma FUNC_EXT_CALLED(ukf_sensor_set_gyroscope);
 void ukf_sensor_set_gyroscope(real_t x, real_t y, real_t z) {
     sensor_model.gyroscope[X] = x;
     sensor_model.gyroscope[Y] = y;
@@ -912,6 +928,7 @@ void ukf_sensor_set_gyroscope(real_t x, real_t y, real_t z) {
     sensor_model.flags.gyroscope = true;
 }
 
+#pragma FUNC_EXT_CALLED(ukf_sensor_set_magnetometer);
 void ukf_sensor_set_magnetometer(real_t x, real_t y, real_t z) {
     sensor_model.magnetometer[X] = x;
     sensor_model.magnetometer[Y] = y;
@@ -919,6 +936,7 @@ void ukf_sensor_set_magnetometer(real_t x, real_t y, real_t z) {
     sensor_model.flags.magnetometer = true;
 }
 
+#pragma FUNC_EXT_CALLED(ukf_sensor_set_gps_position);
 void ukf_sensor_set_gps_position(real_t lat, real_t lon, real_t alt) {
     sensor_model.gps_position[X] = lat;
     sensor_model.gps_position[Y] = lon;
@@ -926,6 +944,7 @@ void ukf_sensor_set_gps_position(real_t lat, real_t lon, real_t alt) {
     sensor_model.flags.gps_position = true;
 }
 
+#pragma FUNC_EXT_CALLED(ukf_sensor_set_gps_velocity);
 void ukf_sensor_set_gps_velocity(real_t x, real_t y, real_t z) {
     sensor_model.gps_velocity[X] = x;
     sensor_model.gps_velocity[Y] = y;
@@ -933,16 +952,19 @@ void ukf_sensor_set_gps_velocity(real_t x, real_t y, real_t z) {
     sensor_model.flags.gps_velocity = true;
 }
 
+#pragma FUNC_EXT_CALLED(ukf_sensor_set_pitot_tas);
 void ukf_sensor_set_pitot_tas(real_t tas) {
     sensor_model.pitot_tas = tas;
     sensor_model.flags.pitot_tas = true;
 }
 
+#pragma FUNC_EXT_CALLED(ukf_sensor_set_barometer_amsl);
 void ukf_sensor_set_barometer_amsl(real_t amsl) {
     sensor_model.barometer_amsl = amsl;
     sensor_model.flags.barometer_amsl = true;
 }
 
+#pragma FUNC_EXT_CALLED(ukf_set_params);
 void ukf_set_params(struct ukf_ioboard_params_t *in) {
     assert(in && "`in` is NULL");
     memcpy(&sensor_model.configuration, in,
@@ -953,6 +975,7 @@ void ukf_set_params(struct ukf_ioboard_params_t *in) {
     #undef B
 }
 
+#pragma FUNC_EXT_CALLED(ukf_choose_dynamics);
 void ukf_choose_dynamics(enum ukf_model_t t) {
     assert(t == UKF_MODEL_NONE || t == UKF_MODEL_CENTRIPETAL ||
         t == UKF_MODEL_CUSTOM || t == UKF_MODEL_X8);
@@ -960,6 +983,7 @@ void ukf_choose_dynamics(enum ukf_model_t t) {
     dynamics_model = t;
 }
 
+#pragma FUNC_EXT_CALLED(ukf_set_custom_dynamics_model);
 void ukf_set_custom_dynamics_model(ukf_model_function_t func) {
     assert(func);
 
@@ -967,6 +991,7 @@ void ukf_set_custom_dynamics_model(ukf_model_function_t func) {
     dynamics_function = func;
 }
 
+#pragma FUNC_EXT_CALLED(ukf_iterate);
 void ukf_iterate(float dt, real_t control[UKF_CONTROL_DIM]) {
     assert(control);
     assert(UKF_STATE_DIM == 24);
@@ -1357,6 +1382,7 @@ void ukf_iterate(float dt, real_t control[UKF_CONTROL_DIM]) {
     _print_matrix("State:\n", state.position, UKF_STATE_DIM + 1, 1);
 }
 
+#pragma FUNC_EXT_CALLED(ukf_init);
 void ukf_init(void) {
     real_t state_covariance_diag[UKF_STATE_DIM] = {
         (real_t)M_PI * (real_t)M_PI * (real_t)0.0625,
@@ -1410,23 +1436,28 @@ void ukf_init(void) {
     ukf_set_params(&base_config);
 }
 
+#pragma FUNC_EXT_CALLED(ukf_set_process_noise);
 void ukf_set_process_noise(real_t in[UKF_STATE_DIM]) {
     assert(in);
     memcpy(&process_noise, in, sizeof(process_noise));
 }
 
+#pragma FUNC_EXT_CALLED(ukf_config_get_state_dim);
 uint32_t ukf_config_get_state_dim() {
     return UKF_STATE_DIM;
 }
 
+#pragma FUNC_EXT_CALLED(ukf_config_get_measurement_dim);
 uint32_t ukf_config_get_measurement_dim() {
     return UKF_MEASUREMENT_DIM;
 }
 
+#pragma FUNC_EXT_CALLED(ukf_config_get_control_dim);
 uint32_t ukf_config_get_control_dim() {
     return UKF_CONTROL_DIM;
 }
 
+#pragma FUNC_EXT_CALLED(ukf_config_get_precision);
 enum ukf_precision_t ukf_config_get_precision() {
 #ifdef UKF_SINGLE_PRECISION
     return UKF_PRECISION_FLOAT;
