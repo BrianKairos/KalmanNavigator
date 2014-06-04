@@ -322,11 +322,11 @@ const real_t *restrict control) {
     Determine airflow magnitude, and the magnitudes of the components in
     the vertical and horizontal planes
     */
-    real_t rpm = control[0] * 12000.0f, thrust,
-           ve2 = (0.0025f * 0.0025f) * rpm * rpm;
+    real_t rpm = (control[0] - 0.15) * 16000.0f, thrust,
+           ve2 = (0.003f * 0.003f) * rpm * rpm;
     /* 1 / 3.8kg times area * density of air */
     thrust = (ve2 - airflow_v2) *
-             (0.26315789473684f * 0.5f * RHO * 0.02f);
+             (0.26315789473684f * 0.5f * RHO * 0.05f);
 
     /*
     Calculate airflow in the horizontal and vertical planes, as well as
@@ -355,10 +355,10 @@ const real_t *restrict control) {
     real_t lift, drag, side_force;
 
     /* 0.26315789473684 is the reciprocal of mass (3.8kg) */
-    lift = (qbar * 0.26315789473684f) * (0.8f * sin_cos_alpha + 0.18f);
+    lift = (qbar * 0.26315789473684f) * (0.6f * sin_cos_alpha + 0.18f);
     drag = (qbar * 0.26315789473684f) *
            (0.05f + 0.7f * sin_alpha * sin_alpha);
-    side_force = (qbar * 0.26315789473684f) * 0.05f * sin_beta;
+    side_force = (qbar * 0.26315789473684f) * 0.2f * sin_beta * cos_beta;
 
     /* Convert aerodynamic forces from wind frame to body frame */
     real_t x_aero_f = lift * sin_alpha - drag * cos_alpha -
@@ -370,6 +370,11 @@ const real_t *restrict control) {
     in->acceleration[X] += x_aero_f + thrust;
     in->acceleration[Z] -= z_aero_f;
 
+    /* Limit the cubic portion of control surface moments to a sane value */
+    if (vertical_v < 20.0f) {
+        vertical_v = 20.0f;
+    }
+
     /* Determine moments */
     real_t pitch_moment, yaw_moment, roll_moment,
            yaw_rate = in->angular_velocity[Z],
@@ -377,11 +382,11 @@ const real_t *restrict control) {
            roll_rate = in->angular_velocity[X],
            left_aileron = control[1] - 0.5, right_aileron = control[2] - 0.5;
     pitch_moment = 0.0f - 0.0f * sin_alpha - 0.0f * pitch_rate -
-                   0.1f * (left_aileron + right_aileron) * vertical_v * 0.1f;
+                   0.15f * (left_aileron + right_aileron) * vertical_v * 0.1f;
     roll_moment = 0.05f * sin_beta - 0.1f * roll_rate +
-                  0.15f * (left_aileron - right_aileron) * vertical_v * 0.1f;
+                  0.3f * (left_aileron - right_aileron) * vertical_v * 0.1f;
     yaw_moment = -0.02f * sin_beta - 0.05f * yaw_rate -
-                 0.02f * (absval(left_aileron) + absval(right_aileron)) *
+                 0.05f * (absval(left_aileron) + absval(right_aileron)) *
                  vertical_v * 0.1f;
     pitch_moment *= qbar;
     roll_moment *= qbar;
@@ -398,8 +403,8 @@ const real_t *restrict control) {
         0 5.88235 0
         0.277444 0 2.49202
     */
-    in->angular_acceleration[Y] = 10.8823528 * pitch_moment;
-    in->angular_acceleration[X] =  (3.364222 * roll_moment +
+    in->angular_acceleration[Y] = 15.8823528 * pitch_moment;
+    in->angular_acceleration[X] =  (3.864222 * roll_moment +
                                     0.27744448 * yaw_moment);
     in->angular_acceleration[Z] =  (0.27744448 * roll_moment +
                                     2.4920163 * yaw_moment);
@@ -471,7 +476,7 @@ const struct ukf_state_t *restrict sigma) {
     if (sensor_model.flags.gps_position) {
         measurement_estimate[i++] = sigma->position[0];
         measurement_estimate[i++] = sigma->position[1];
-        measurement_estimate[i++] = sigma->position[2];
+        //measurement_estimate[i++] = sigma->position[2];
     }
 
     if (sensor_model.flags.gps_velocity) {
@@ -526,7 +531,7 @@ size_t _ukf_sensor_collate(real_t measurement_estimate[UKF_MEASUREMENT_DIM]) {
     if (sensor_model.flags.gps_position) {
         measurement_estimate[i++] = sensor_model.gps_position[X];
         measurement_estimate[i++] = sensor_model.gps_position[Y];
-        measurement_estimate[i++] = sensor_model.gps_position[Z];
+        //measurement_estimate[i++] = sensor_model.gps_position[Z];
     }
 
     if (sensor_model.flags.gps_velocity) {
@@ -575,7 +580,7 @@ void _ukf_sensor_get_covariance(real_t covariance[UKF_MEASUREMENT_DIM]) {
     if (sensor_model.flags.gps_position) {
         covariance[i++] = C.gps_position_covariance[X];
         covariance[i++] = C.gps_position_covariance[Y];
-        covariance[i++] = C.gps_position_covariance[Z];
+        //covariance[i++] = C.gps_position_covariance[Z];
     }
 
     if (sensor_model.flags.gps_velocity) {
@@ -1151,8 +1156,8 @@ void ukf_iterate(float dt, real_t control[UKF_CONTROL_DIM]) {
         j += 3;
     }
     if (sensor_model.flags.gps_position) {
-        measurement_dim += 3;
-        j += 3;
+        measurement_dim += 2; //3;
+        j += 2; //3;
     }
     if (sensor_model.flags.gps_velocity) {
         measurement_dim += 3;
@@ -1386,14 +1391,14 @@ void ukf_iterate(float dt, real_t control[UKF_CONTROL_DIM]) {
 void ukf_init(void) {
     real_t state_covariance_diag[UKF_STATE_DIM] = {
         (real_t)M_PI * (real_t)M_PI * (real_t)0.0625,
-            (real_t)M_PI * (real_t)M_PI * (real_t)0.0625, 1000,
-        50, 50, 50,
-        10, 10, 10,
+            (real_t)M_PI * (real_t)M_PI * (real_t)0.0625, 1,
+        1, 1, 1,
+        1, 1, 1,
         (real_t)M_PI * (real_t)0.25, (real_t)M_PI * (real_t)0.25,
             (real_t)M_PI * (real_t)0.25,
-        2, 2, 2,
-        5, 5, 5,
-        20, 20, 20,
+        1, 1, 1,
+        1, 1, 1,
+        1, 1, 1,
         0, 0, 0
     };
 
