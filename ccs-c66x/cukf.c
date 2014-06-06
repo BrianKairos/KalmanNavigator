@@ -355,7 +355,7 @@ const real_t *restrict control) {
     real_t lift, drag, side_force;
 
     /* 0.26315789473684 is the reciprocal of mass (3.8kg) */
-    lift = (qbar * 0.26315789473684f) * (0.6f * sin_cos_alpha + 0.18f);
+    lift = (qbar * 0.26315789473684f) * (0.5f * sin_cos_alpha + 0.12f);
     drag = (qbar * 0.26315789473684f) *
            (0.05f + 0.7f * sin_alpha * sin_alpha);
     side_force = (qbar * 0.26315789473684f) * 0.2f * sin_beta * cos_beta;
@@ -382,9 +382,9 @@ const real_t *restrict control) {
            roll_rate = in->angular_velocity[X],
            left_aileron = control[1] - 0.5, right_aileron = control[2] - 0.5;
     pitch_moment = 0.0f - 0.0f * sin_alpha - 0.0f * pitch_rate -
-                   0.15f * (left_aileron + right_aileron) * vertical_v * 0.1f;
+                   0.2f * (left_aileron + right_aileron) * vertical_v * 0.1f;
     roll_moment = 0.05f * sin_beta - 0.1f * roll_rate +
-                  0.3f * (left_aileron - right_aileron) * vertical_v * 0.1f;
+                  0.45f * (left_aileron - right_aileron) * vertical_v * 0.1f;
     yaw_moment = -0.02f * sin_beta - 0.05f * yaw_rate -
                  0.05f * (absval(left_aileron) + absval(right_aileron)) *
                  vertical_v * 0.1f;
@@ -1394,12 +1394,11 @@ void ukf_init(void) {
             (real_t)M_PI * (real_t)M_PI * (real_t)0.0625, 1,
         1, 1, 1,
         1, 1, 1,
-        (real_t)M_PI * (real_t)0.25, (real_t)M_PI * (real_t)0.25,
-            (real_t)M_PI * (real_t)0.25,
+        0, 0, (real_t)M_PI * (real_t)0.25,
+        0, 0, 0,
         1, 1, 1,
         1, 1, 1,
-        1, 1, 1,
-        0, 0, 0
+        1, 1, 1
     };
 
     memset(state_covariance, 0, sizeof(state_covariance));
