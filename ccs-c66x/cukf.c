@@ -119,6 +119,8 @@ static real_t w_prime[UKF_STATE_DIM * UKF_NUM_SIGMA];
 static real_t measurement_estimate_sigma[UKF_MEASUREMENT_DIM * UKF_NUM_SIGMA];
 static real_t measurement_estimate_covariance[(UKF_MEASUREMENT_DIM - 3) *
                                               (UKF_MEASUREMENT_DIM - 3)];
+static real_t innovation[UKF_MEASUREMENT_DIM - 3];
+static size_t last_innovation_dim;
 
 
 /* Dynamics model configuration */
@@ -322,11 +324,15 @@ const real_t *restrict control) {
     Determine airflow magnitude, and the magnitudes of the components in
     the vertical and horizontal planes
     */
-    real_t rpm = (control[0] - 0.15) * 16000.0f, thrust,
-           ve2 = (0.003f * 0.003f) * rpm * rpm;
+    real_t rpm = (control[0] - 0.15) * 12000.0f, thrust,
+           ve2 = (0.007f * 0.007f) * rpm * rpm;
     /* 1 / 3.8kg times area * density of air */
     thrust = (ve2 - airflow_v2) *
-             (0.26315789473684f * 0.5f * RHO * 0.05f);
+             (0.26315789473684f * 0.5f * RHO * 0.02f);
+
+    if (thrust < 0.0) {
+        thrust = 0.0;
+    }
 
     /*
     Calculate airflow in the horizontal and vertical planes, as well as
@@ -355,10 +361,10 @@ const real_t *restrict control) {
     real_t lift, drag, side_force;
 
     /* 0.26315789473684 is the reciprocal of mass (3.8kg) */
-    lift = (qbar * 0.26315789473684f) * (0.5f * sin_cos_alpha + 0.12f);
+    lift = (qbar * 0.26315789473684f) * (1.6f * sin_cos_alpha + 0.15f);
     drag = (qbar * 0.26315789473684f) *
-           (0.05f + 0.7f * sin_alpha * sin_alpha);
-    side_force = (qbar * 0.26315789473684f) * 0.2f * sin_beta * cos_beta;
+           (0.05f + 2.0f * sin_alpha * sin_alpha);
+    side_force = (qbar * 0.26315789473684f) * 0.05f * sin_beta * cos_beta;
 
     /* Convert aerodynamic forces from wind frame to body frame */
     real_t x_aero_f = lift * sin_alpha - drag * cos_alpha -
@@ -377,16 +383,10 @@ const real_t *restrict control) {
 
     /* Determine moments */
     real_t pitch_moment, yaw_moment, roll_moment,
-           yaw_rate = in->angular_velocity[Z],
-           pitch_rate = in->angular_velocity[Y],
-           roll_rate = in->angular_velocity[X],
            left_aileron = control[1] - 0.5, right_aileron = control[2] - 0.5;
-    pitch_moment = 0.0f - 0.0f * sin_alpha - 0.0f * pitch_rate -
-                   0.2f * (left_aileron + right_aileron) * vertical_v * 0.1f;
-    roll_moment = 0.05f * sin_beta - 0.1f * roll_rate +
-                  0.45f * (left_aileron - right_aileron) * vertical_v * 0.1f;
-    yaw_moment = -0.02f * sin_beta - 0.05f * yaw_rate -
-                 0.05f * (absval(left_aileron) + absval(right_aileron)) *
+    pitch_moment = -0.4f * (left_aileron + right_aileron) * vertical_v * 0.1f;
+    roll_moment = 0.05f * sin_beta + 0.6f * (left_aileron - right_aileron) * vertical_v * 0.1f;
+    yaw_moment = 0.15f * (absval(left_aileron) + absval(right_aileron)) *
                  vertical_v * 0.1f;
     pitch_moment *= qbar;
     roll_moment *= qbar;
@@ -912,6 +912,63 @@ void ukf_get_state_error(real_t in[UKF_STATE_DIM]) {
     }
 }
 
+#pragma FUNC_EXT_CALLED(ukf_get_sensor_health);
+void ukf_get_sensor_health(struct ukf_sensor_health_t *in) {
+    assert(in);
+
+    size_t iidx = 0;
+
+    if (sensor_model.flags.accelerometer) {
+        in->accel_gyro_present = true;
+        memcpy(in->accel_value, sensor_model.accelerometer, sizeof(real_t) * 3);
+        memcpy(in->accel_covariance, sensor_model.configuration.accel_covariance, sizeof(real_t) * 3);
+        memcpy(in->accel_innovation, &innovation[iidx], sizeof(real_t) * 3);
+        iidx += 3;
+
+        memcpy(in->gyro_value, sensor_model.gyroscope, sizeof(real_t) * 3);
+        memcpy(in->gyro_covariance, sensor_model.configuration.gyro_covariance, sizeof(real_t) * 3);
+        memcpy(in->gyro_innovation, &innovation[iidx], sizeof(real_t) * 3);
+        iidx += 3;
+    }
+
+    if (sensor_model.flags.magnetometer) {
+        in->mag_present = true;
+        memcpy(in->mag_value, sensor_model.magnetometer, sizeof(real_t) * 3);
+        memcpy(in->mag_covariance, sensor_model.configuration.mag_covariance, sizeof(real_t) * 3);
+        memcpy(in->mag_innovation, &innovation[iidx], sizeof(real_t) * 3);
+        iidx += 3;
+    }
+
+    if (sensor_model.flags.gps_position) {
+        in->gps_present = true;
+        memcpy(in->gps_position_value, sensor_model.gps_position, sizeof(real_t) * 2);
+        memcpy(in->gps_position_covariance, sensor_model.configuration.gps_position_covariance, sizeof(real_t) * 2);
+        memcpy(in->gps_position_innovation, &innovation[iidx], sizeof(real_t) * 2);
+        iidx += 2;
+
+        memcpy(in->gps_velocity_value, sensor_model.gps_velocity, sizeof(real_t) * 3);
+        memcpy(in->gps_velocity_covariance, sensor_model.configuration.gps_velocity_covariance, sizeof(real_t) * 3);
+        memcpy(in->gps_velocity_innovation, &innovation[iidx], sizeof(real_t) * 3);
+        iidx += 3;
+    }
+
+    if (sensor_model.flags.pitot_tas) {
+        in->pitot_present = true;
+        in->pitot_value = sensor_model.pitot_tas;
+        in->pitot_covariance = sensor_model.configuration.pitot_covariance;
+        in->pitot_innovation = innovation[iidx];
+        iidx += 1;
+    }
+
+    if (sensor_model.flags.barometer_amsl) {
+        in->barometer_present = true;
+        in->barometer_value = sensor_model.barometer_amsl;
+        in->barometer_covariance = sensor_model.configuration.barometer_amsl_covariance;
+        in->barometer_innovation = innovation[iidx];
+        iidx += 1;
+    }
+}
+
 #pragma FUNC_EXT_CALLED(ukf_sensor_clear);
 void ukf_sensor_clear() {
     memset(&sensor_model.flags, 0, sizeof(sensor_model.flags));
@@ -1261,8 +1318,7 @@ void ukf_iterate(float dt, real_t control[UKF_CONTROL_DIM]) {
 
     src/ukf.cpp line 282
     */
-    real_t innovation[UKF_MEASUREMENT_DIM - 3],
-           sensor_covariance[UKF_MEASUREMENT_DIM - 3],
+    real_t sensor_covariance[UKF_MEASUREMENT_DIM - 3],
            update_temp[UKF_MEASUREMENT_DIM - 3];
     _ukf_sensor_collate(innovation);
     _ukf_sensor_get_covariance(sensor_covariance);
@@ -1272,6 +1328,7 @@ void ukf_iterate(float dt, real_t control[UKF_CONTROL_DIM]) {
         measurement_estimate_covariance[i*measurement_dim + i] +=
             sensor_covariance[i];
     }
+    last_innovation_dim = measurement_dim;
 
     _print_matrix("Measurement estimate covariance:\n",
                   measurement_estimate_covariance, measurement_dim,
